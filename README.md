@@ -131,4 +131,8 @@ Never commit or log private keys, JWTs, webhook secrets, full bank details, or i
 
 LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
 
+### Vulnerability scanning
+
+The `Security scan` workflow audits both committed npm and pnpm lockfiles and scans the built container image on pull requests, pushes to `main`, and weekly. High and critical findings with an available fix fail the job; findings without a published fix are reported but do not block it. The workflow needs only read access to repository contents and does not receive application secrets. Dependency and base-image upgrades should be submitted with the lockfiles and Dockerfile changes so reviewers can inspect the remediation.
+
 `GET /stellar/balances/:publicKey` returns each asset balance as before. The native XLM record also includes `minimum_reserve` and `spendable_balance`; reserve uses the live Horizon base reserve and account subentry/sponsorship counts, and spendable subtracts selling liabilities.
