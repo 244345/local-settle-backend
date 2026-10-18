@@ -73,7 +73,10 @@ export class OfferService {
       p.take ?? 20,
       sortBy,
       sortOrder,
-    );
+    ).then((page) => ({
+      ...page,
+      items: page.items.map((offer) => this.maskPaymentMethods(offer)),
+    }));
   }
 
   async get(id: string): Promise<OfferWithRelations> {
@@ -84,7 +87,24 @@ export class OfferService {
         `Offer ${id} not found`,
       );
     }
-    return item;
+    return this.maskPaymentMethods(item);
+  }
+
+  /** Offer discovery is public; never serialize payment account details here. */
+  private maskPaymentMethods(offer: OfferWithRelations): OfferWithRelations {
+    return {
+      ...offer,
+      payment_methods: offer.payment_methods.map((method) => ({
+        ...method,
+        accountIdentifier: this.maskIdentifier(method.accountIdentifier),
+        beneficiaryName: null,
+      })),
+    };
+  }
+
+  private maskIdentifier(value: string): string {
+    const visibleSuffix = value.slice(-4);
+    return `${'*'.repeat(Math.max(4, value.length - visibleSuffix.length))}${visibleSuffix}`;
   }
 
   async update(
