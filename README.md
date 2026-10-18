@@ -105,6 +105,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Stellar payment history accepts `limit` (default 10, maximum 200) and an optional Horizon `cursor`. The response is `{ records, nextCursor? }`; pass `nextCursor` as `cursor` to fetch the next page. `nextCursor` is omitted on the final page.
+
 Sensitive profile changes are recorded as `USER_PROFILE_UPDATED` audit events. Their metadata contains only changed field names (or requested field names on failure); submitted values are never copied into audit metadata. No-op requests are recorded with an empty field list. Profile-image updates use the same event with `profileImageUrl` as the sole field name.
 
 ## Development checks
