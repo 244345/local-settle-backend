@@ -131,6 +131,10 @@ Never commit or log private keys, JWTs, webhook secrets, full bank details, or i
 
 LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
 
+### Public statistics privacy and freshness
+
+The public statistics response contains aggregates only and does not return account, wallet, order, or transaction identifiers. Daily waitlist cohorts smaller than five are suppressed. Statistics are cached in process for up to 30 seconds (at most 20 window entries); callers that perform a statistics-affecting write can call `StatsService.invalidateCache()` to clear it. Multi-instance deployments may briefly serve different cached values until each instance refreshes.
+
 ### Vulnerability scanning
 
 The `Security scan` workflow audits both committed npm and pnpm lockfiles and scans the built container image on pull requests, pushes to `main`, and weekly. High and critical findings with an available fix fail the job; findings without a published fix are reported but do not block it. The workflow needs only read access to repository contents and does not receive application secrets. Dependency and base-image upgrades should be submitted with the lockfiles and Dockerfile changes so reviewers can inspect the remediation.
