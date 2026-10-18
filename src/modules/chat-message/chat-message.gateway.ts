@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -30,6 +31,7 @@ interface ChatJwtPayload {
 interface AuthenticatedSocketData {
   userId: string;
   publicKey?: string;
+  correlationId: string;
 }
 
 interface ChatServerEvents {
@@ -86,6 +88,16 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
 
   afterInit(server: Server): void {
     server.use((socket, next) => {
+      const client = socket as ChatSocket;
+      const incoming =
+        client.handshake.auth?.correlationId ??
+        client.handshake.headers['x-correlation-id'];
+      client.data.correlationId =
+        typeof incoming === 'string' &&
+        incoming.length <= 64 &&
+        /^[A-Za-z0-9._-]+$/.test(incoming)
+          ? incoming
+          : randomUUID();
       void this.authenticateSocket(socket as ChatSocket).then(
         () => next(),
         (error: unknown) =>
@@ -281,7 +293,7 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
       return { ok: true, data: createdMessage };
     } catch (error) {
       this.logger.error(
-        `Failed to persist chat message for order ${orderId}`,
+        `Failed to persist chat message for order ${orderId} correlationId=${client.data.correlationId}`,
         error instanceof Error ? error.stack : undefined,
       );
       return this.fail(

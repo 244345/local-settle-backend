@@ -139,6 +139,8 @@ Never commit or log private keys, JWTs, webhook secrets, full bank details, or i
 
 LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
 
+HTTP requests and chat socket connections carry a validated `x-correlation-id` (or receive a generated UUID). HTTP responses echo the ID in the same header, and chat persistence failures include the socket connection's ID in structured application logs. Incoming values are limited to 64 ASCII letters, digits, dots, underscores, or hyphens to avoid log injection.
+
 Order creation rejects a buyer's second open order for the same offer. A partial unique database index on `(offer_id, buyer_id)` for `created` and `locked` orders also protects concurrent requests; once an order reaches a terminal state, the buyer can intentionally trade against that offer again.
 
 ### Audit-log privacy and retention
