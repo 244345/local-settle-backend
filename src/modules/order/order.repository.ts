@@ -50,12 +50,32 @@ export class OrderRepository extends BaseRepository {
     };
   }): Promise<Order & { escrowId: string | null }> {
     const created = await this.prisma.$transaction(async (tx) => {
-      const reservation = await tx.offer.updateMany({
-        where: { offerId: data.offerId, status: 'active', executed: false },
-        data: { executed: true },
+      // Lock the offer row so concurrent orders cannot reserve the same remaining amount.
+      const [offer] = await tx.$queryRaw<
+        Array<{ max_amount: Prisma.Decimal; min_amount: Prisma.Decimal; status: string }>
+      >`SELECT max_amount, min_amount, status FROM offer WHERE offer_id = ${data.offerId}::uuid FOR UPDATE`;
+      if (!offer || offer.status !== 'active') {
+        throw new ConflictException('Offer is unavailable');
+      }
+
+      const requestedAmount = new Prisma.Decimal(data.assetAmount);
+      const minAmount = new Prisma.Decimal(offer.min_amount);
+      const maxAmount = new Prisma.Decimal(offer.max_amount);
+      const now = new Date();
+      const reserved = await tx.order.aggregate({
+        where: {
+          offerId: data.offerId,
+          orderStatus: { in: ['created', 'locked', 'disputed'] },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        _sum: { assetAmount: true },
       });
-      if (reservation.count !== 1) {
-        throw new ConflictException('Offer is unavailable or already reserved');
+      const usedAmount = reserved._sum.assetAmount ?? new Prisma.Decimal(0);
+      const remaining = maxAmount.minus(usedAmount);
+      if (requestedAmount.lessThan(minAmount) || requestedAmount.greaterThan(remaining)) {
+        throw new ConflictException(
+          `Order amount must be at least ${minAmount.toString()} and no more than the remaining offer amount ${remaining.toString()}`,
+        );
       }
       const payload = {
         ...(data.orderId ? { orderId: data.orderId } : {}),
@@ -86,6 +106,11 @@ export class OrderRepository extends BaseRepository {
         escrowId = escrow.escrowId;
       }
 
+      const totalReserved = usedAmount.plus(requestedAmount);
+      await tx.offer.update({
+        where: { offerId: data.offerId },
+        data: { executed: totalReserved.greaterThanOrEqualTo(maxAmount) },
+      });
       return { ...order, escrowId };
     });
 
