@@ -4,13 +4,29 @@ import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { ChatMessageRepository } from './chat-message.repository';
 import { AppException, ErrorCode } from '../../common/errors';
 import { ChatMessage } from '@prisma/client';
+import { validateChatMessageContent } from './chat-message-content';
 
 @Injectable()
 export class ChatMessageService {
   constructor(private readonly repo: ChatMessageRepository) {}
 
   create(dto: CreateChatMessageDto): Promise<ChatMessage> {
-    return this.repo.createIdempotent(dto) as Promise<ChatMessage>;
+    const validation = validateChatMessageContent(dto.content);
+    if (!validation.valid) {
+      const messages = {
+        empty: 'Message cannot be empty.',
+        too_long: 'Message exceeds the 4000 character limit.',
+        control_character: 'Message contains unsupported control characters.',
+        not_string: 'Message must be text.',
+      };
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        messages[validation.reason],
+      );
+    }
+    return this.repo.createIdempotent(
+      { ...dto, content: validation.content },
+    ) as Promise<ChatMessage>;
   }
 
   async canAccessOrder(
