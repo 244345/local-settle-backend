@@ -37,6 +37,7 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(StellarListenerService.name);
   private isListening = false;
   private timer: NodeJS.Timeout | null = null;
+  private activePoll: Promise<void> | null = null;
 
   private lastProcessedLedger = 0;
   private readonly processedEventIds = new Set<string>();
@@ -74,8 +75,9 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
     this.startListening();
   }
 
-  onModuleDestroy() {
+  async onModuleDestroy(): Promise<void> {
     this.stopListening();
+    await this.activePoll;
   }
 
   /**
@@ -106,7 +108,9 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
   private scheduleNextPoll(delayMs: number) {
     if (!this.isListening) return;
     this.timer = setTimeout(() => {
-      void this.pollEventsWithRecovery();
+      this.activePoll = this.pollEventsWithRecovery().finally(() => {
+        this.activePoll = null;
+      });
     }, delayMs);
   }
 
