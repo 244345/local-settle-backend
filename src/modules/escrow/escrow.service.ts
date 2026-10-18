@@ -518,12 +518,28 @@ export class EscrowService {
         evidenceKey: key,
         evidenceUploadedAt: new Date(),
       });
-      return { url: result.url };
+      return { url: `/escrows/${id}/evidence` };
     } catch (error) {
       userUsage.bytes -= file.size;
       orderUsage.bytes -= file.size;
       throw error;
     }
+  }
+
+  async getEvidenceDownloadUrl(id: string) {
+    const escrow = await this.getOrFail(id);
+    if (!escrow.evidenceUrl) {
+      throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, 'Evidence not found');
+    }
+    const expiresInSeconds = 5 * 60;
+    const url = await this.fileStorage.getSignedDownloadUrl(
+      escrow.evidenceUrl,
+      expiresInSeconds,
+    );
+    return {
+      url,
+      expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+    };
   }
 
   private getEvidenceUsage(key: string, now: number, expiresAt: number) {
@@ -761,15 +777,16 @@ export class EscrowService {
     ) as Promise<EscrowOnChain>;
   }
 
-  list(p: PaginationDto, orderId?: string) {
-    if (orderId) {
-      return this.repo.findMany({
-        skip: p.skip,
-        take: p.take,
-        where: { orderId },
-      });
-    }
-    return this.repo.findMany({ skip: p.skip, take: p.take });
+  async list(p: PaginationDto, orderId?: string) {
+    const items = await this.repo.findMany({
+      skip: p.skip,
+      take: p.take,
+      ...(orderId ? { where: { orderId } } : {}),
+    });
+    return items.map((item) => ({
+      ...item,
+      evidenceUrl: item.evidenceUrl ? `/escrows/${item.escrowId}/evidence` : null,
+    }));
   }
 
   async get(id: string) {
@@ -780,7 +797,10 @@ export class EscrowService {
         `Escrow ${id} not found`,
       );
     }
-    return item;
+    return {
+      ...item,
+      evidenceUrl: item.evidenceUrl ? `/escrows/${item.escrowId}/evidence` : null,
+    };
   }
 
   update(id: string, dto: UpdateEscrowDto) {
