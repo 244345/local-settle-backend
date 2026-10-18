@@ -20,6 +20,10 @@ import { OpenEscrowDto } from './dto/open-escrow.dto';
 import { InitializeEscrowDto } from './dto/initialize-escrow.dto';
 import { FundEscrowDto } from './dto/fund-escrow.dto';
 import type { UploadFileInput } from '../file-storage/file-storage.service';
+import {
+  EVIDENCE_FILE_SIZE_LIMIT,
+  MULTIPART_FIELD_LIMITS,
+} from '../../common/request-limits';
 import { FiatSentDto } from './dto/fiat-sent.dto';
 import { ReleaseEscrowDto } from './dto/release-escrow.dto';
 import { SyncEscrowDto } from './dto/sync-escrow.dto';
@@ -100,7 +104,9 @@ export class EscrowController {
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {
-        fileSize: Number(process.env.EVIDENCE_MAX_FILE_BYTES) || 10 * 1024 * 1024,
+        fileSize:
+          Number(process.env.EVIDENCE_MAX_FILE_BYTES) || EVIDENCE_FILE_SIZE_LIMIT,
+        ...MULTIPART_FIELD_LIMITS,
       },
     }),
   )
