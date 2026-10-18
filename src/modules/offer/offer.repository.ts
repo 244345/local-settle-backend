@@ -3,6 +3,7 @@ import { BaseRepository } from '../../common/base.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PAYMENT_METHOD_SELECT } from '../../common/prisma-selects';
+import { PaymentDataCipher } from '../payment-methods/payment-data-cipher';
 
 export const OFFER_DETAIL_INCLUDE = {
   payment_methods: { select: PAYMENT_METHOD_SELECT },
@@ -14,6 +15,8 @@ export type OfferWithRelations = Prisma.OfferGetPayload<{
 
 @Injectable()
 export class OfferRepository extends BaseRepository {
+  private readonly paymentDataCipher = new PaymentDataCipher();
+
   constructor(private readonly prisma: PrismaService) {
     super(prisma.offer, 'offerId');
   }
@@ -46,7 +49,7 @@ export class OfferRepository extends BaseRepository {
       );
     }
 
-    return this.prisma.offer.create({
+    const created = await this.prisma.offer.create({
       data: {
         ...offerData,
         payment_methods: connectPaymentMethods.connect
@@ -55,13 +58,15 @@ export class OfferRepository extends BaseRepository {
       } as never,
       include: OFFER_DETAIL_INCLUDE,
     });
+    return this.decryptPaymentMethods(created);
   }
 
-  findById(offerId: string): Promise<OfferWithRelations | null> {
-    return this.prisma.offer.findFirst({
+  async findById(offerId: string): Promise<OfferWithRelations | null> {
+    const offer = await this.prisma.offer.findFirst({
       where: { offerId, creator: { deletedAt: null } },
       include: OFFER_DETAIL_INCLUDE,
     });
+    return offer ? this.decryptPaymentMethods(offer) : null;
   }
 
   search(
@@ -77,7 +82,17 @@ export class OfferRepository extends BaseRepository {
       take,
       orderBy: [{ [sortBy]: sortOrder }, { offerId: 'desc' }],
       include: OFFER_DETAIL_INCLUDE,
-    });
+    }).then((offers) => offers.map((offer) => this.decryptPaymentMethods(offer)));
+  }
+
+  private decryptPaymentMethods<T extends { payment_methods?: unknown[] }>(offer: T): T {
+    if (!Array.isArray(offer.payment_methods)) return offer;
+    return {
+      ...offer,
+      payment_methods: offer.payment_methods.map((method) =>
+        this.paymentDataCipher.decryptFields(method as never),
+      ),
+    };
   }
 
   async searchPage(
