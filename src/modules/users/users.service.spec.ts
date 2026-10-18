@@ -104,7 +104,10 @@ describe('UsersService', () => {
       service.update('user-1', { alias: 'new-alias' }, 'user-1'),
     ).resolves.toEqual(updatedUser);
 
-    expect(repo.update).toHaveBeenCalledWith('user-1', { alias: 'new-alias' });
+    expect(repo.update).toHaveBeenCalledWith('user-1', {
+      alias: 'new-alias',
+      aliasNormalized: 'new-alias',
+    });
   });
 
   it('audits a no-op sensitive profile update with no changed values', async () => {
