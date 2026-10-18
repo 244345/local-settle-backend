@@ -106,6 +106,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Active payment providers are checked against provider-type metadata schema version 1 before being returned or used to create payment methods. The provider response includes `metadataSchemaVersion`; malformed UI requirements fail with a validation error so they do not reach trade screens.
+
 `POST /users/:id/setup` applies profile updates, an optional payment method, and the account setup audit row in one database transaction. Repeated setup requests reuse an existing matching payment method instead of creating another one.
 
 `PATCH /orders/:id` accepts only escrow-backed forward transitions: `created` to `locked` when escrow is funded, and `locked` to `released` or `disputed` when escrow has the matching terminal status. The write is conditional on the observed order and escrow states, so stale requests return HTTP 409 with the stable `ORDER_INVALID_TRANSITION` error code. Cancellation and expiration must use their dedicated flows. Terminal order states cannot be reopened through PATCH.
