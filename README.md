@@ -105,6 +105,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Order creation records `ORDER_CREATED` in the same database transaction as the order, escrow record, and offer execution update. Audit storage errors therefore abort the complete database transaction instead of leaving a committed order without its audit record.
+
 Order creation derives and persists `fiatAmount` from the selected offer price and asset amount. The total is rounded to two decimal places using half-up rounding; a legacy client-supplied `fiatAmount` is accepted but ignored.
 
 Each payment history record retains the legacy `asset` and `asset_issuer` fields and adds `asset_descriptor` with the asset type, code, and issuer. Native XLM uses code `XLM` and a `null` issuer; issued assets include their issuer address.
