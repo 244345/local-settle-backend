@@ -27,6 +27,7 @@ model AppUser {
   preferredCurrency    String?          @map("preferred_currency")
   bio                  String?         @map("bio")
   securityUpdates      Boolean         @default(true) @map("security_updates")
+  messageReceiptsEnabled Boolean       @default(false) @map("message_receipts_enabled")
   deletedAt            DateTime?       @map("deleted_at") @db.Timestamptz(6)
   chatMessages         ChatMessage[]
   offers               Offer[]         @relation("UserOffers")
@@ -105,6 +106,8 @@ model ChatMessage {
   clientMessageId String? @map("client_message_id") @db.Uuid
   content   String
   timestamp DateTime @default(now()) @db.Timestamptz(6)
+  deliveredAt DateTime? @map("delivered_at") @db.Timestamptz(6)
+  readAt DateTime? @map("read_at") @db.Timestamptz(6)
   order     Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
   sender    AppUser  @relation(fields: [senderId], references: [userId], onUpdate: NoAction)
 

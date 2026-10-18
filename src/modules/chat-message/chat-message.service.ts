@@ -29,6 +29,14 @@ export class ChatMessageService {
     ) as Promise<ChatMessage>;
   }
 
+  markDelivered(orderId: string, recipientId: string) {
+    return this.repo.markDelivered(orderId, recipientId);
+  }
+
+  markRead(orderId: string, readerId: string) {
+    return this.repo.markRead(orderId, readerId);
+  }
+
   async canAccessOrder(
     orderId: string,
     userId: string,
